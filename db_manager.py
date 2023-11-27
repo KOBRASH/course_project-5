@@ -1,11 +1,9 @@
 import psycopg2
+from config import DB_CONFIG
 
 class DBManager:
-    def __init__(self, dbname, user, password, host, port):
-        # Устанавливаем соединение с базой данных при создании экземпляра класса
-        self.conn = psycopg2.connect(
-            dbname=dbname, user=user, password=password, host=host, port=port
-        )
+    def __init__(self):
+        self.conn = psycopg2.connect(**DB_CONFIG)
         self.cur = self.conn.cursor()
 
     def get_companies_and_vacancies_count(self):
