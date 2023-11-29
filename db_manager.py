@@ -5,6 +5,32 @@ class DBManager:
     def __init__(self):
         self.conn = psycopg2.connect(**DB_CONFIG)
         self.cur = self.conn.cursor()
+        self.create_tables()  # Вызываем метод для создания таблиц при инициализации
+
+    def create_tables(self):
+        """Метод для создания таблиц в базе данных"""
+        create_companies_table = """
+            CREATE TABLE IF NOT EXISTS companies (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL
+            );
+        """
+
+        create_vacancies_table = """
+            CREATE TABLE IF NOT EXISTS vacancies (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER REFERENCES companies(id),
+                title TEXT NOT NULL,
+                salary NUMERIC,
+                link TEXT
+            );
+        """
+
+        # Создание таблиц
+        self.cur.execute(create_companies_table)
+        self.cur.execute(create_vacancies_table)
+        self.conn.commit()
+
 
     def get_companies_and_vacancies_count(self):
         # Метод для получения списка компаний и количества вакансий у каждой компании
