@@ -5,7 +5,7 @@ class DBManager:
     def __init__(self):
         self.conn = psycopg2.connect(**DB_CONFIG)
         self.cur = self.conn.cursor()
-        self.create_tables()  # Вызываем метод для создания таблиц при инициализации
+        self.create_tables()  # Создаем таблицы при инициализации
 
     def create_tables(self):
         """Метод для создания таблиц в базе данных"""
@@ -19,16 +19,29 @@ class DBManager:
         create_vacancies_table = """
             CREATE TABLE IF NOT EXISTS vacancies (
                 id SERIAL PRIMARY KEY,
-                company_id INTEGER REFERENCES companies(id),
-                title TEXT NOT NULL,
+                company_name TEXT,
+                vacancy_title TEXT NOT NULL,
                 salary NUMERIC,
-                link TEXT
+                vacancy_link TEXT,
+                FOREIGN KEY (company_name) REFERENCES companies(name)
             );
         """
 
         # Создание таблиц
         self.cur.execute(create_companies_table)
         self.cur.execute(create_vacancies_table)
+        self.conn.commit()
+
+    def insert_company_data(self, company_name):
+        """Добавляет данные о компании в таблицу companies"""
+        insert_company_query = "INSERT INTO companies (name) VALUES (%s);"
+        self.cur.execute(insert_company_query, (company_name,))
+        self.conn.commit()
+
+    def insert_vacancy_data(self, company_name, vacancy_title, salary, vacancy_link):
+        """Добавляет данные о вакансии в таблицу vacancies"""
+        insert_vacancy_query = "INSERT INTO vacancies (company_name, vacancy_title, salary, vacancy_link) VALUES (%s, %s, %s, %s);"
+        self.cur.execute(insert_vacancy_query, (company_name, vacancy_title, salary, vacancy_link))
         self.conn.commit()
 
 
