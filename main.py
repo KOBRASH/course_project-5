@@ -1,59 +1,63 @@
-from db_manager import DBManager
+import requests
+import json
 
-def main():
-    db_manager = DBManager()
-
-    while True:
-        print("\nМеню:")
-        print("1. Добавить компанию")
-        print("2. Добавить вакансию")
-        print("3. Получить список всех компаний и количество вакансий у каждой")
-        print("4. Получить список всех вакансий")
-        print("5. Получить среднюю зарплату по вакансиям")
-        print("6. Получить список вакансий с зарплатой выше средней")
-        print("7. Получить список вакансий по ключевому слову")
-        print("0. Выйти")
-
-        choice = input("Выберите действие: ")
-
-        if choice == "1":
-            company_name = input("Введите название компании: ")
-            db_manager.insert_company_data(company_name)
-            print("Компания добавлена успешно.")
-        elif choice == "2":
-            company_id = int(input("Введите ID компании: "))
-            title = input("Введите название вакансии: ")
-            salary = float(input("Введите зарплату: "))
-            link = input("Введите ссылку на вакансию: ")
-            db_manager.insert_vacancy_data(company_id, title, salary, link)
-            print("Вакансия добавлена успешно.")
-        elif choice == "3":
-            companies_vacancies_count = db_manager.get_companies_and_vacancies_count()
-            print("Список всех компаний и количество вакансий:")
-            print(companies_vacancies_count)
-        elif choice == "4":
-            all_vacancies = db_manager.get_all_vacancies()
-            print("Список всех вакансий:")
-            print(all_vacancies)
-        elif choice == "5":
-            avg_salary = db_manager.get_avg_salary()
-            print("Средняя зарплата по вакансиям:")
-            print(avg_salary)
-        elif choice == "6":
-            vacancies_higher_salary = db_manager.get_vacancies_with_higher_salary()
-            print("Список вакансий с зарплатой выше средней:")
-            print(vacancies_higher_salary)
-        elif choice == "7":
-            keyword = input("Введите ключевое слово для поиска вакансий: ")
-            vacancies_with_keyword = db_manager.get_vacancies_with_keyword(keyword)
-            print(f"Список вакансий с ключевым словом '{keyword}':")
-            print(vacancies_with_keyword)
-        elif choice == "0":
-            break
+def get_employer_id_by_name(employer_name):
+    url = f"https://api.hh.ru/employers"
+    params = {'text': employer_name}
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        employers_data = response.json()
+        if employers_data.get('items'):
+            first_employer = employers_data['items'][0]
+            return first_employer['id']
         else:
-            print("Неверный выбор. Пожалуйста, выберите существующую опцию.")
+            return None
+    else:
+        print(f"Не удалось получить данные для работодателя {employer_name}. Статус код: {response.status_code}")
+        return None
 
-    db_manager.close_connection()
+def get_vacancies_by_employer_id(employer_name):
+    employer_id = get_employer_id_by_name(employer_name)
+    if employer_id:
+        url = f"https://api.hh.ru/vacancies"
+        params = {'employer_id': employer_id}
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            vacancies = response.json().get('items', [])
+            unique_vacancies = {}  # Используем словарь для хранения уникальных вакансий и их максимальной зарплаты
+            for vacancy in vacancies:
+                salary = vacancy.get('salary', {})
+                if salary and salary.get('to'):
+                    vacancy_name = vacancy['name']
+                    if vacancy_name not in unique_vacancies or salary['to'] > unique_vacancies[vacancy_name]:
+                        unique_vacancies[vacancy_name] = salary['to']
+            return {'employer_id': employer_id, 'employer_name': employer_name, 'vacancies': unique_vacancies}
+        else:
+            print(f"Не удалось получить данные о вакансиях для работодателя {employer_name}. Статус код: {response.status_code}")
+    else:
+        print(f"Не найден '{employer_name}'")
+    return None
 
-if __name__ == "__main__":
-    main()
+employer_names = [
+    "ООО ИПО Ю-Питер",
+    "ООО Люди Любят",
+    "Mail.ru Group",
+    "ГКУ ЛО Региональный мониторинговый центр",
+    "ООО АТП Невское",
+    "Action",
+    "Студия Etalon Sport & Dance",
+    "Магнит",
+    "СП Энергосервис",
+    "ООО Правград"
+]
+
+all_vacancies_data = {}
+for employer_name in employer_names:
+    vacancies_data = get_vacancies_by_employer_id(employer_name)
+    if vacancies_data:
+        all_vacancies_data[employer_name] = vacancies_data
+
+with open('vacancies_data.json', 'w', encoding='utf-8') as json_file:
+    json.dump(all_vacancies_data, json_file, ensure_ascii=False, indent=4)
+
+print("Данные о вакансиях сохранены в файл 'vacancies_data.json'.")
